@@ -1,0 +1,12 @@
+List the full names and email addresses of all members of this group below:
+
+Grinnell Student 1 <student@grinnell.edu>
+Grinnell Student 2 <student@grinnell.edu>
+
+By submitting this document, we confirm the following:
+
+1. Every student listed above contributed meaningfully to the work we are submitting.
+2. Our work on this lab was collaborative; the vast majority of the work on this lab was completed synchoronously with all group members present.
+3. The listed students above constitute the entire assigned group for this lab.
+
+If any of the statements above are not true, do not submit this lab. If you are concerned that you will not be able to submit the above statements honestly, contact the instructor immediately.

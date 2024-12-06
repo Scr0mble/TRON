@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import shutil
+import stat
+import sys
+
+from pathlib import Path
+
+# Paths that your share directory can be located at
+SHARE_DIR_NAMES = ['~/Share', '~/share', '~/.share']
+
+def main(argv):
+    # Set up the parser first, we want any parse errors to happen before runtime checks
+    parser = argparse.ArgumentParser(description='Share files with other users')
+    parser.add_argument('path', nargs='+', help='Path to share')
+    args = parser.parse_args(argv[1:])
+
+    # Check that the share directory exists and is a directory
+    share_path = get_share_path()
+    if share_path == None:
+        eprint('You currently have no share directory, you\'ll need to create one by running these commands:')
+        eprint('  mkdir <NAME>')
+        eprint('  chmod 711 <NAME>')
+        eprint('Valid names are:')
+        for d in SHARE_DIR_NAMES:
+            eprint(f'  {d}')
+        return 1
+
+    # Check that the home directory has correct permissions (at least executable for group and other)
+    mode = get_mode(Path('~'))
+    if not (bool(mode & stat.S_IXGRP) and bool(mode & stat.S_IXOTH)):
+        eprint('Your home directory does not currently have open enough permissions.')
+        eprint('It must be at least executable by group and other. To set that up, you can run:')
+        eprint('  chmod go+x ~')
+        return 1
+
+    # Check that the share directory has correct permissions (executable for group and other)
+    mode = get_mode(share_path)
+    if not (bool(mode & stat.S_IXGRP) and bool(mode & stat.S_IXOTH)):
+        eprint('Your share directory currently doesn\'t have open enough permissions.')
+        eprint('It must be at least executable by group and other. To set that up, you can run:')
+        eprint(f'  chmod go+x {share_path}')
+        return 1
+
+    # Now, we're actually ready to share all these files
+    for src in (Path(name) for name in args.path):
+        # Check if the destination we want to copy to already exists
+        dst = (share_path / src.name).expanduser()
+        if dst.exists():
+            eprint(f'{src.name} already exists in {share_path}')
+            continue
+
+        # Copy it there and set the permissions
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+        make_readable_rec(dst)
+
+        # Let the user know where it got copied to
+        print(dst)
+
+    return 0
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+def get_mode(path):
+    statinfo = os.stat(path.expanduser())
+    return statinfo.st_mode
+
+def get_share_path():
+    for name in SHARE_DIR_NAMES:
+        share_path = Path(name).expanduser()
+        if share_path.exists() and share_path.is_dir():
+            return Path(name)
+    return None
+
+def make_readable_rec(path):
+    if path.is_dir():
+        # chmod 755, then recurse into children
+        path.chmod(0o755)
+        for child in path.iterdir():
+            make_readable_rec(child)
+    else:
+        # chmod go+r
+        st = path.stat()
+        path.chmod(st.st_mode | stat.S_IRGRP | stat.S_IROTH)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

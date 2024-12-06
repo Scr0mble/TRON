@@ -1,0 +1,35 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     worm
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _screen_row, symObjAddr: 0x0, symBinAddr: 0x100002828, symSize: 0x18 }
+  - { offsetInCU: 0x3F, offset: 0x3F, size: 0x8, addend: 0x0, symName: _worm_dir, symObjAddr: 0x2588, symBinAddr: 0x100008010, symSize: 0x0 }
+  - { offsetInCU: 0x5B, offset: 0x5B, size: 0x8, addend: 0x0, symName: _worm_length, symObjAddr: 0x1080, symBinAddr: 0x100008000, symSize: 0x0 }
+  - { offsetInCU: 0x70, offset: 0x70, size: 0x8, addend: 0x0, symName: _updated_worm_dir, symObjAddr: 0x258C, symBinAddr: 0x100008014, symSize: 0x0 }
+  - { offsetInCU: 0x85, offset: 0x85, size: 0x8, addend: 0x0, symName: _apple_age, symObjAddr: 0x1084, symBinAddr: 0x100008004, symSize: 0x0 }
+  - { offsetInCU: 0x9A, offset: 0x9A, size: 0x8, addend: 0x0, symName: _running, symObjAddr: 0x1088, symBinAddr: 0x100008008, symSize: 0x0 }
+  - { offsetInCU: 0xC4, offset: 0xC4, size: 0x8, addend: 0x0, symName: _board, symBinAddr: 0x100008018, symSize: 0x0 }
+  - { offsetInCU: 0xE6, offset: 0xE6, size: 0x8, addend: 0x0, symName: _screen_row, symObjAddr: 0x0, symBinAddr: 0x100002828, symSize: 0x18 }
+  - { offsetInCU: 0x10E, offset: 0x10E, size: 0x8, addend: 0x0, symName: _screen_col, symObjAddr: 0x18, symBinAddr: 0x100002840, symSize: 0x18 }
+  - { offsetInCU: 0x136, offset: 0x136, size: 0x8, addend: 0x0, symName: _init_display, symObjAddr: 0x30, symBinAddr: 0x100002858, symSize: 0x40C }
+  - { offsetInCU: 0x184, offset: 0x184, size: 0x8, addend: 0x0, symName: _end_game, symObjAddr: 0x43C, symBinAddr: 0x100002C64, symSize: 0x110 }
+  - { offsetInCU: 0x199, offset: 0x199, size: 0x8, addend: 0x0, symName: _draw_board, symObjAddr: 0x54C, symBinAddr: 0x100002D74, symSize: 0x2BC }
+  - { offsetInCU: 0x203, offset: 0x203, size: 0x8, addend: 0x0, symName: _read_input, symObjAddr: 0x808, symBinAddr: 0x100003030, symSize: 0x18C }
+  - { offsetInCU: 0x235, offset: 0x235, size: 0x8, addend: 0x0, symName: _update_worm, symObjAddr: 0x994, symBinAddr: 0x1000031BC, symSize: 0x3AC }
+  - { offsetInCU: 0x2AD, offset: 0x2AD, size: 0x8, addend: 0x0, symName: _update_apples, symObjAddr: 0xD40, symBinAddr: 0x100003568, symSize: 0xF8 }
+  - { offsetInCU: 0x2FC, offset: 0x2FC, size: 0x8, addend: 0x0, symName: _generate_apple, symObjAddr: 0xE38, symBinAddr: 0x100003660, symSize: 0x10C }
+  - { offsetInCU: 0x35C, offset: 0x35C, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0xF44, symBinAddr: 0x10000376C, symSize: 0x13C }
+  - { offsetInCU: 0x26, offset: 0x424, size: 0x8, addend: 0x0, symName: _sleep_ms, symObjAddr: 0x0, symBinAddr: 0x1000038A8, symSize: 0x80 }
+  - { offsetInCU: 0x41, offset: 0x43F, size: 0x8, addend: 0x0, symName: _sleep_ms, symObjAddr: 0x0, symBinAddr: 0x1000038A8, symSize: 0x80 }
+  - { offsetInCU: 0x81, offset: 0x47F, size: 0x8, addend: 0x0, symName: _time_ms, symObjAddr: 0x80, symBinAddr: 0x100003928, symSize: 0x64 }
+  - { offsetInCU: 0x26, offset: 0x55B, size: 0x8, addend: 0x0, symName: _scheduler_init, symObjAddr: 0x0, symBinAddr: 0x10000398C, symSize: 0xC0 }
+  - { offsetInCU: 0x3F, offset: 0x574, size: 0x8, addend: 0x0, symName: _current_task, symObjAddr: 0x16D4, symBinAddr: 0x1000093A0, symSize: 0x0 }
+  - { offsetInCU: 0x5B, offset: 0x590, size: 0x8, addend: 0x0, symName: _num_tasks, symObjAddr: 0x420, symBinAddr: 0x10000800C, symSize: 0x0 }
+  - { offsetInCU: 0x7E, offset: 0x5B3, size: 0x8, addend: 0x0, symName: _tasks, symBinAddr: 0x1000093B0, symSize: 0x0 }
+  - { offsetInCU: 0x2FB, offset: 0x830, size: 0x8, addend: 0x0, symName: _scheduler_init, symObjAddr: 0x0, symBinAddr: 0x10000398C, symSize: 0xC0 }
+  - { offsetInCU: 0x32D, offset: 0x862, size: 0x8, addend: 0x0, symName: _task_exit, symObjAddr: 0xC0, symBinAddr: 0x100003A4C, symSize: 0x100 }
+  - { offsetInCU: 0x37B, offset: 0x8B0, size: 0x8, addend: 0x0, symName: _task_create, symObjAddr: 0x1C0, symBinAddr: 0x100003B4C, symSize: 0x1B4 }
+  - { offsetInCU: 0x3BB, offset: 0x8F0, size: 0x8, addend: 0x0, symName: _task_wait, symObjAddr: 0x374, symBinAddr: 0x100003D00, symSize: 0x94 }
+  - { offsetInCU: 0x3DF, offset: 0x914, size: 0x8, addend: 0x0, symName: _task_sleep, symObjAddr: 0x408, symBinAddr: 0x100003D94, symSize: 0x10 }
+  - { offsetInCU: 0x403, offset: 0x938, size: 0x8, addend: 0x0, symName: _task_readchar, symObjAddr: 0x418, symBinAddr: 0x100003DA4, symSize: 0x8 }
+...
