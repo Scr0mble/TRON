@@ -106,6 +106,41 @@ void init_display() {
 }
 
 /**
+ * Show a game startup message and wait for a key press.
+ */
+void start_game() {
+  int row =  (BOARD_HEIGHT / 2);
+  int col = (BOARD_WIDTH / 2);
+  mvprintw(screen_row(row) - 5, screen_col(col) - 6, "            ");
+  mvprintw(screen_row(row) - 4, screen_col(col) - 9, " Welcome to Tron! ");
+  mvprintw(screen_row(row) - 3, screen_col(col) - 6, "            ");
+  mvprintw(screen_row(row) -2, screen_col(col) - 11, " The rules are simple: ");
+  mvprintw(screen_row(row) - 1, screen_col(col) - 9, " 1. Walls kill you. ");
+  mvprintw(screen_row(row), screen_col(col) - 12, " 2. Bike trails kill you. ");
+  mvprintw(screen_row(row) + 1, screen_col(col) - 6, " 3. Survive! ");
+  mvprintw(screen_row(row) + 2, screen_col(col) - 6, "            ");
+  mvprintw(screen_row(row) + 3, screen_col(col) - 11, " Player 1: Arrow Keys ");
+  mvprintw(screen_row(row) + 4, screen_col(col) - 10, " Player 2: WASD Keys ");
+  mvprintw(screen_row(row) + 5, screen_col(col) - 6, "            ");
+  refresh();
+  sleep(5);
+
+  for(int i = 3; i >= 0; i--){
+    mvprintw(screen_row(row) + 6, screen_col(BOARD_WIDTH / 2) - 8,
+           " Starting in %d. ", i);
+    refresh();
+    sleep(1);
+  }
+  mvprintw(screen_row(row) + 6, screen_col(col) - 12, "                        ");
+  mvprintw(screen_row(row) + 6, screen_col(col) - 4,
+           " Begin! ");
+  refresh();
+  sleep(2);
+  // timeout(-1);
+
+}
+
+/**
  * Show a game over message and wait for a key press.
  */
 void end_game() {
@@ -127,6 +162,7 @@ void end_game() {
  */
 void* draw_board(void* arg) {
   while (running) {
+    refresh();
     // Loop over cells of the game board
     pthread_mutex_lock(&board_lock);
     for (int r = 0; r < BOARD_HEIGHT; r++) {
@@ -329,6 +365,8 @@ int main(void) {
   // task_create(&update_worm_task, update_worm);
   // task_create(&draw_board_task, draw_board);
   // task_create(&read_input_task, read_input);
+  start_game();
+  wrefresh(mainwin);
 
   pthread_create(&update_worm_thread, NULL, update_worm, NULL);
   pthread_create(&draw_board_thread, NULL, draw_board, NULL);
