@@ -33,6 +33,11 @@
 #define BOARD_HEIGHT 40
 
 pthread_barrier_t barr;
+pthread_mutex_t dirk_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t update_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+int created = 0;
 
 /**
  * In-memory representation of the game board
@@ -116,13 +121,14 @@ void end_game() {
            "Press any key to exit.");
   refresh();
   timeout(-1);
-  task_readchar();
+  // task_readchar();
 }
 
 /**
  * Run in a task to draw the current state of the game board.
  */
-void draw_board(void* arg) {
+void* draw_board(void* arg) {
+  created = 1;
   while (running) {
     // Loop over cells of the game board
     for (int r = 0; r < BOARD_HEIGHT; r++) {
@@ -145,27 +151,41 @@ void draw_board(void* arg) {
     refresh();
 
     // Sleep for a while before drawing the board again
-    // task_sleep(DRAW_BOARD_INTERVAL);
-
-    pthread_barrier_wait(&barr);
-
+    sleep_ms(DRAW_BOARD_INTERVAL);
 
   }
+  return NULL;
 }
 
 /**
  * Run in a task to process user input.
  */
-void read_input() {
+void* read_input(void *arg) {
+  // pthread_mutex_lock(&dirk_lock);
+  // while(created == 0)
+  //   pthread_cond_wait(&cond, &dirk_lock);
+  // pthread_mutex_unlock(&dirk_lock);
+
   while (running) {
+
     // Read a character, potentially blocking this task until a key is pressed
-    int key = task_readchar();
+    int key = getch();
 
     // Make sure the input was read correctly
     if (key == ERR) {
-      running = false;
-      fprintf(stderr, "ERROR READING INPUT\n");
+      ungetch(0);
+      continue;
+      // end_game();
+      // sleep(3);
+      // running = false;
+      // end_game();
     }
+
+
+    // Make sure the input was read correctly
+    // if (key == ERR) {
+    //   continue;
+    // }
 
     // Handle the key press
     if (key == KEY_UP && worm_dir != DIR_SOUTH) {
@@ -180,12 +200,17 @@ void read_input() {
       running = false;
     }
   }
+  return NULL;
 }
 
 /**
  * Run in a task to move the worm around on the board
  */
-void update_worm() {
+void* update_worm(void* arg) {
+  // pthread_mutex_lock(&dirk_lock);
+  // while(created == 0)
+  //   pthread_cond_wait(&cond, &dirk_lock);
+  // pthread_mutex_unlock(&dirk_lock);
   while (running) {
     // Update the direction of the worm
     worm_dir = updated_worm_dir;
@@ -205,10 +230,10 @@ void update_worm() {
         if (board[r][c] > 0) {
           board[r][c]++;
 
-          // // Remove the worm segment if it is too old
-          // if (board[r][c] > worm_length) {
-          //   board[r][c] = 0;
-          // }
+        //    // Remove the worm segment if it is too old
+        //    if (board[r][c] > worm_length) {
+        //      board[r][c] = 0;
+        //    }
         }
       }
     }
@@ -248,11 +273,12 @@ void update_worm() {
 
     // Update the worm movement speed to deal with rectangular cursors
     if (worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
-      task_sleep(WORM_VERTICAL_INTERVAL);
+      sleep_ms(WORM_VERTICAL_INTERVAL);
     } else {
-      task_sleep(WORM_HORIZONTAL_INTERVAL);
+      sleep_ms(WORM_HORIZONTAL_INTERVAL);
     }
   }
+  return NULL;
 }
 
 // Entry point: Set up the game, create jobs, then run the scheduler
@@ -281,9 +307,9 @@ int main(void) {
   board[BOARD_HEIGHT - 2][BOARD_WIDTH / 2] = 1;
 
   // Task handles for each of the game tasks
-  task_t update_worm_task;
-  task_t draw_board_task;
-  task_t read_input_task;
+  // task_t update_worm_task;
+  // task_t draw_board_task;
+  // task_t read_input_task;
 
   // Threads for each of the game tasks
   pthread_t update_worm_thread;
@@ -291,24 +317,29 @@ int main(void) {
   pthread_t read_input_thread;
 
   // Initialize the scheduler library
-  scheduler_init();
+  // scheduler_init();
 
-//   pthread_barrier_init();
 
   // Create tasks for each task in the game
-  task_create(&update_worm_task, update_worm);
-  task_create(&draw_board_task, draw_board);
-  task_create(&read_input_task, read_input);
+  // task_create(&update_worm_task, update_worm);
+  // task_create(&draw_board_task, draw_board);
+  // task_create(&read_input_task, read_input);
 
   pthread_create(&update_worm_thread, NULL, update_worm, NULL);
   pthread_create(&draw_board_thread, NULL, draw_board, NULL);
   pthread_create(&read_input_thread, NULL, read_input, NULL);
 
 
-  // Wait for these tasks to exit
-  task_wait(update_worm_task);
-  task_wait(draw_board_task);
-  task_wait(read_input_task);
+  // // Wait for these tasks to exit
+  // task_wait(update_worm_task);
+  // task_wait(draw_board_task);
+  // task_wait(read_input_task);
+  
+  pthread_join(update_worm_thread, NULL);
+  pthread_join(draw_board_thread, NULL);
+  pthread_join(read_input_thread, NULL);
+
+
 
   // Display the end of game message and wait for user input
   end_game();
