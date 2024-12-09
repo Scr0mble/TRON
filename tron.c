@@ -33,11 +33,9 @@
 #define BOARD_HEIGHT 40
 
 pthread_barrier_t barr;
-pthread_mutex_t dirk_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t update_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t board_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t input_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-
-int created = 0;
 
 /**
  * In-memory representation of the game board
@@ -107,10 +105,7 @@ void init_display() {
   refresh();
 }
 
-/**pthread_mutex_lock(&m);
-    // while(done == 0)
-    //     pthread_cond_wait(&c, &m);
-    // pthread_mutex_unlock(&m);
+/**
  * Show a game over message and wait for a key press.
  */
 void end_game() {
@@ -121,16 +116,19 @@ void end_game() {
            "Press any key to exit.");
   refresh();
   timeout(-1);
-  // task_readchar();
+  int key = getch();
+  while(key == ERR){
+    ;
+  }
 }
 
 /**
  * Run in a task to draw the current state of the game board.
  */
 void* draw_board(void* arg) {
-  created = 1;
   while (running) {
     // Loop over cells of the game board
+    pthread_mutex_lock(&board_lock);
     for (int r = 0; r < BOARD_HEIGHT; r++) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
         if (board[r][c] == 0) {  // Draw blank spaces
@@ -142,13 +140,14 @@ void* draw_board(void* arg) {
         }
       }
     }
+    pthread_mutex_unlock(&board_lock);
 
     // Draw the score
     // mvprintw(screen_row(-2), screen_col(BOARD_WIDTH - 9), "Score %03d\r",
     //          worm_length - INIT_WORM_LENGTH);
 
     // Refresh the display
-    refresh();
+    //refresh();
 
     // Sleep for a while before drawing the board again
     sleep_ms(DRAW_BOARD_INTERVAL);
@@ -165,15 +164,16 @@ void* read_input(void *arg) {
   // while(created == 0)
   //   pthread_cond_wait(&cond, &dirk_lock);
   // pthread_mutex_unlock(&dirk_lock);
+  int key;
 
   while (running) {
 
     // Read a character, potentially blocking this task until a key is pressed
-    int key = getch();
 
+    
     // Make sure the input was read correctly
-    if (key == ERR) {
-      ungetch(0);
+    if ((key = getch()) == ERR) {
+      // ungetch(0);
       continue;
       // end_game();
       // sleep(3);
@@ -218,6 +218,7 @@ void* update_worm(void* arg) {
     int worm_row;
     int worm_col;
 
+    pthread_mutex_lock(&board_lock);
     // "Age" each existing segment of the worm
     for (int r = 0; r < BOARD_HEIGHT; r++) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
@@ -237,6 +238,7 @@ void* update_worm(void* arg) {
         }
       }
     }
+    pthread_mutex_unlock(&board_lock);
 
     // Move the worm into a new space
     if (worm_dir == DIR_NORTH) {
@@ -254,22 +256,25 @@ void* update_worm(void* arg) {
       running = false;
 
       // Add a key to the input buffer so the read_input task can exit
-      ungetch(0);
-
+      // ungetch(0);
+    pthread_mutex_lock(&board_lock);
     } else if (board[worm_row][worm_col] > 0) {
       // Check for worm collisions
       running = false;
 
       // Add a key to the input buffer so the read_input task can exit
-      ungetch(0);
+      // ungetch(0);
     } else if (board[worm_row][worm_col] < 0) {
       // Check for apple collisions
       // Worm gets longer
       worm_length++;
     }
+    pthread_mutex_unlock(&board_lock);
 
     // Add the worm's new position
+    pthread_mutex_lock(&board_lock);
     if (running) board[worm_row][worm_col] = 1;
+    pthread_mutex_unlock(&board_lock);
 
     // Update the worm movement speed to deal with rectangular cursors
     if (worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
