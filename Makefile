@@ -1,18 +1,18 @@
 CC := clang
 CFLAGS := -g -Wall -Wno-deprecated-declarations -Werror 
 
-all: worm
+all: tron
 
 clean:
-	rm -f worm
+	rm -f tron
 
-worm: tron.c util.c util.h scheduler.c scheduler.h
-	$(CC) $(CFLAGS) -o worm tron.c util.c scheduler.c -lncurses
+tron: tron.c util.c util.h scheduler.c scheduler.h
+	$(CC) $(CFLAGS) -o tron tron.c util.c scheduler.c -lncurses
 
 zip:
-	@echo "Generating worm.zip file to submit to Gradescope..."
-	@zip -q -r worm.zip . -x .git/\* .vscode/\* .clang-format .gitignore worm
-	@echo "Done. Please upload worm.zip to Gradescope."
+	@echo "Generating tron.zip file to submit to Gradescope..."
+	@zip -q -r tron.zip . -x .git/\* .vscode/\* .clang-format .gitignore tron
+	@echo "Done. Please upload tron.zip to Gradescope."
 
 format:
 	@echo "Reformatting source code."

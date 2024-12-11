@@ -17,20 +17,21 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-// Defines used to track the worm direction
+// Defines used to track the player direction
 #define DIR_NORTH 0
 #define DIR_EAST 1
 #define DIR_SOUTH 2
 #define DIR_WEST 3
 
 // Game parameters
-#define INIT_WORM_LENGTH 4
-#define WORM_HORIZONTAL_INTERVAL 200
-#define WORM_VERTICAL_INTERVAL 300
+#define INIT_player_LENGTH 4
+#define player_HORIZONTAL_INTERVAL 100
+#define player_VERTICAL_INTERVAL 150
 #define DRAW_BOARD_INTERVAL 33
 #define READ_INPUT_INTERVAL 150
 #define BOARD_WIDTH 100
 #define BOARD_HEIGHT 40
+
 
 pthread_barrier_t barr;
 pthread_mutex_t board_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -40,15 +41,18 @@ pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 /**
  * In-memory representation of the game board
  * Zero represents an empty cell
- * Positive numbers represent worm cells (which count up at each time step until they reach
- * worm_length) Negative numbers represent apple cells (which count up at each time step)
+ * Positive numbers represent player cells (which count up at each time step until they reach
+ * player_length) Negative numbers represent apple cells (which count up at each time step)
  */
 int board[BOARD_HEIGHT][BOARD_WIDTH];
 
-// Worm parameters
-int worm_dir = DIR_NORTH;
-int worm_length = INIT_WORM_LENGTH;
-int updated_worm_dir = DIR_NORTH;
+// player parameters
+int player_dir = DIR_NORTH;
+int updated_player_dir = DIR_NORTH;
+
+int player_dir_2 = DIR_SOUTH;
+int updated_player_dir_2 = DIR_SOUTH;
+
 
 // Is the game running?
 bool running = true;
@@ -79,7 +83,7 @@ void init_display() {
   move(screen_row(-2), screen_col(BOARD_WIDTH / 2 - 5));
   addch(ACS_DIAMOND);
   addch(ACS_DIAMOND);
-  printw(" Worm! ");
+  printw(" Tron! ");
   addch(ACS_DIAMOND);
   addch(ACS_DIAMOND);
 
@@ -151,6 +155,7 @@ void end_game() {
            "Press any key to exit.");
   refresh();
   timeout(-1);
+  sleep(2);
   int key = getch();
   while(key == ERR){
     ;
@@ -161,6 +166,11 @@ void end_game() {
  * Run in a task to draw the current state of the game board.
  */
 void* draw_board(void* arg) {
+  start_color();
+  init_pair(1, COLOR_WHITE, COLOR_YELLOW);
+
+  init_pair(2, COLOR_BLACK, COLOR_CYAN);
+  init_pair(3, COLOR_BLACK, COLOR_WHITE);
   while (running) {
     refresh();
     // Loop over cells of the game board
@@ -170,9 +180,13 @@ void* draw_board(void* arg) {
         if (board[r][c] == 0) {  // Draw blank spaces
           mvaddch(screen_row(r), screen_col(c), ' ');
         } else if (board[r][c] == 1){
-          mvaddch(screen_row(r), screen_col(c), 'H');
-        } else if (board[r][c] > 0) {  // Draw worm
-          mvaddch(screen_row(r), screen_col(c), 'O');
+          mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(3));
+        } else if (board[r][c] == 2) {  // Draw player
+          mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(1));
+        }else if (board[r][c] == 3) {  // Draw player
+          mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(3));
+        }else if (board[r][c] == 4) {  // Draw player
+          mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(2));
         }
       }
     }
@@ -180,7 +194,7 @@ void* draw_board(void* arg) {
 
     // Draw the score
     // mvprintw(screen_row(-2), screen_col(BOARD_WIDTH - 9), "Score %03d\r",
-    //          worm_length - INIT_WORM_LENGTH);
+    //          player_length - INIT_player_LENGTH);
 
     // Refresh the display
     //refresh();
@@ -224,100 +238,113 @@ void* read_input(void *arg) {
     // }
 
     // Handle the key press
-    if (key == KEY_UP && worm_dir != DIR_SOUTH) {
-      updated_worm_dir = DIR_NORTH;
-    } else if (key == KEY_RIGHT && worm_dir != DIR_WEST) {
-      updated_worm_dir = DIR_EAST;
-    } else if (key == KEY_DOWN && worm_dir != DIR_NORTH) {
-      updated_worm_dir = DIR_SOUTH;
-    } else if (key == KEY_LEFT && worm_dir != DIR_EAST) {
-      updated_worm_dir = DIR_WEST;
+    if (key == KEY_UP && player_dir != DIR_SOUTH) {
+      updated_player_dir = DIR_NORTH;
+    } else if (key == KEY_RIGHT && player_dir != DIR_WEST) {
+      updated_player_dir = DIR_EAST;
+    } else if (key == KEY_DOWN && player_dir != DIR_NORTH) {
+      updated_player_dir = DIR_SOUTH;
+    } else if (key == KEY_LEFT && player_dir != DIR_EAST) {
+      updated_player_dir = DIR_WEST;
     } else if (key == 'q') {
       running = false;
+    } else if (key == 'w' && player_dir_2 != DIR_SOUTH) {
+      updated_player_dir_2 = DIR_NORTH;
+    } else if (key == 'd' && player_dir_2 != DIR_WEST) {
+      updated_player_dir_2 = DIR_EAST;
+    } else if (key == 's' && player_dir_2 != DIR_NORTH) {
+      updated_player_dir_2 = DIR_SOUTH;
+    } else if (key == 'a' && player_dir_2 != DIR_EAST) {
+      updated_player_dir_2 = DIR_WEST;
     }
   }
   return NULL;
 }
 
 /**
- * Run in a task to move the worm around on the board
+ * Run in a task to move the player around on the board
  */
-void* update_worm(void* arg) {
+void* update_player(void* arg) {
   // pthread_mutex_lock(&dirk_lock);
   // while(created == 0)
   //   pthread_cond_wait(&cond, &dirk_lock);
   // pthread_mutex_unlock(&dirk_lock);
   while (running) {
-    // Update the direction of the worm
-    worm_dir = updated_worm_dir;
+    // Update the direction of the player
+    int player_num = *(int*)arg;
+    int current_player_dir;
 
-    int worm_row;
-    int worm_col;
+    if(player_num == 1){
+      current_player_dir = updated_player_dir;
+      player_dir = updated_player_dir;
+    }
+    else{
+      player_dir_2 = updated_player_dir_2;
+      current_player_dir = updated_player_dir_2;
+    }
+
+    // player_dir = updated_player_dir;
+    // player_dir_2 = updated_player_dir_2;
+
+    int player_row;
+    int player_col;
+
+    // int player_row_2;
+    // int player_col_2;
 
     pthread_mutex_lock(&board_lock);
-    // "Age" each existing segment of the worm
+    // "Age" each existing segment of the player
     for (int r = 0; r < BOARD_HEIGHT; r++) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
-        if (board[r][c] == 1) {  // Found the head of the worm. Save position
-          worm_row = r;
-          worm_col = c;
-        }
-
-        // Add 1 to the age of the worm segment
-        if (board[r][c] > 0) {
+        if (board[r][c] == player_num *2 -1) {  // Found the head of the player. Save position
+          player_row = r;
+          player_col = c;
           board[r][c]++;
-
-        //    // Remove the worm segment if it is too old
-        //    if (board[r][c] > worm_length) {
-        //      board[r][c] = 0;
-        //    }
         }
       }
     }
     pthread_mutex_unlock(&board_lock);
 
-    // Move the worm into a new space
-    if (worm_dir == DIR_NORTH) {
-      worm_row--;
-    } else if (worm_dir == DIR_SOUTH) {
-      worm_row++;
-    } else if (worm_dir == DIR_EAST) {
-      worm_col++;
-    } else if (worm_dir == DIR_WEST) {
-      worm_col--;
+    // Move the player into a new space
+    if (current_player_dir == DIR_NORTH) {
+      player_row--;
+    } else if (current_player_dir == DIR_SOUTH) {
+      player_row++;
+    } else if (current_player_dir == DIR_EAST) {
+      player_col++;
+    } else if (current_player_dir == DIR_WEST) {
+      player_col--;
     }
 
     // Check for edge collisions
-    if (worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) {
-      running = false;
-
-      // Add a key to the input buffer so the read_input task can exit
-      // ungetch(0);
     pthread_mutex_lock(&board_lock);
-    } else if (board[worm_row][worm_col] > 0) {
-      // Check for worm collisions
+    if (player_row < 0 || player_row >= BOARD_HEIGHT || player_col < 0 || player_col >= BOARD_WIDTH) {
       running = false;
 
       // Add a key to the input buffer so the read_input task can exit
       // ungetch(0);
-    } else if (board[worm_row][worm_col] < 0) {
-      // Check for apple collisions
-      // Worm gets longer
-      worm_length++;
+
+    } else if (board[player_row][player_col] != 0) {
+      // Check for player collisions
+      running = false;
+
+      // Add a key to the input buffer so the read_input task can exit
+      // ungetch(0);
+    }
+    if (running){
+      board[player_row][player_col] = (player_num * 2) - 1;
+      // board[player_row_2][player_col_2] = 1;
     }
     pthread_mutex_unlock(&board_lock);
 
-    // Add the worm's new position
-    pthread_mutex_lock(&board_lock);
-    if (running) board[worm_row][worm_col] = 1;
-    pthread_mutex_unlock(&board_lock);
-
-    // Update the worm movement speed to deal with rectangular cursors
-    if (worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
-      sleep_ms(WORM_VERTICAL_INTERVAL);
+    // Update the player movement speed to deal with rectangular cursors
+    if (current_player_dir == DIR_NORTH || current_player_dir == DIR_SOUTH) {
+      sleep_ms(player_VERTICAL_INTERVAL);
     } else {
-      sleep_ms(WORM_HORIZONTAL_INTERVAL);
+      sleep_ms(player_HORIZONTAL_INTERVAL);
     }
+
+
   }
   return NULL;
 }
@@ -344,16 +371,18 @@ int main(void) {
   // Zero out the board contents
   memset(board, 0, BOARD_WIDTH * BOARD_HEIGHT * sizeof(int));
 
-  // Put the worm at the middle of the board
+  // Put the player at the middle of the board
   board[BOARD_HEIGHT - 2][BOARD_WIDTH / 2] = 1;
+  board[2][BOARD_WIDTH / 2] = 3;
 
   // Task handles for each of the game tasks
-  // task_t update_worm_task;
+  // task_t update_player_task;
   // task_t draw_board_task;
   // task_t read_input_task;
 
   // Threads for each of the game tasks
-  pthread_t update_worm_thread;
+  pthread_t update_player_thread;
+  pthread_t update_player_thread_2;
   pthread_t draw_board_thread;
   pthread_t read_input_thread;
 
@@ -362,23 +391,28 @@ int main(void) {
 
 
   // Create tasks for each task in the game
-  // task_create(&update_worm_task, update_worm);
+  // task_create(&update_player_task, update_player);
   // task_create(&draw_board_task, draw_board);
   // task_create(&read_input_task, read_input);
   start_game();
   wrefresh(mainwin);
 
-  pthread_create(&update_worm_thread, NULL, update_worm, NULL);
+  int player_number_1 = 1;
+  int player_number_2 = 2;
+
+  pthread_create(&update_player_thread, NULL, update_player, (void*) &player_number_1);
+  pthread_create(&update_player_thread_2, NULL, update_player, (void*) &player_number_2);
   pthread_create(&draw_board_thread, NULL, draw_board, NULL);
   pthread_create(&read_input_thread, NULL, read_input, NULL);
 
 
   // // Wait for these tasks to exit
-  // task_wait(update_worm_task);
+  // task_wait(update_player_task);
   // task_wait(draw_board_task);
   // task_wait(read_input_task);
   
-  pthread_join(update_worm_thread, NULL);
+  pthread_join(update_player_thread, NULL);
+  pthread_join(update_player_thread_2, NULL);
   pthread_join(draw_board_thread, NULL);
   pthread_join(read_input_thread, NULL);
 
