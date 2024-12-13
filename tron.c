@@ -32,11 +32,9 @@
 #define BOARD_WIDTH 100
 #define BOARD_HEIGHT 40
 
-
-pthread_barrier_t barr;
+// Locks for concurrency control
 pthread_mutex_t board_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t input_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 /**
  * In-memory representation of the game board
@@ -46,10 +44,11 @@ pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
  */
 int board[BOARD_HEIGHT][BOARD_WIDTH];
 
-// player parameters
+// player 1 parameters
 int player_dir = DIR_NORTH;
 int updated_player_dir = DIR_NORTH;
 
+// player 2 parameters
 int player_dir_2 = DIR_SOUTH;
 int updated_player_dir_2 = DIR_SOUTH;
 
@@ -127,35 +126,54 @@ void start_game() {
   mvprintw(screen_row(row) + 4, screen_col(col) - 10, " Player 2: WASD Keys ");
   mvprintw(screen_row(row) + 5, screen_col(col) - 6, "            ");
   refresh();
-  sleep(5);
 
+  // wait for user input
+  mvprintw(screen_row(row) + 6, screen_col(col) - 12,
+           " Press any key to begin. ");
+  int key;
+  while((key = getch())== ERR){
+    ;
+  }
+  // ungetch otherwise it breaks
+  ungetch(0);
+
+  // countdown timer until game start
   for(int i = 3; i >= 0; i--){
-    mvprintw(screen_row(row) + 6, screen_col(BOARD_WIDTH / 2) - 8,
-           " Starting in %d. ", i);
+    mvprintw(screen_row(row) + 6, screen_col(BOARD_WIDTH / 2) - 12,
+           "     Starting in %d.     ", i);
     refresh();
     sleep(1);
   }
   mvprintw(screen_row(row) + 6, screen_col(col) - 12, "                        ");
   mvprintw(screen_row(row) + 6, screen_col(col) - 4,
            " Begin! ");
+
   refresh();
   sleep(2);
-  // timeout(-1);
-
 }
 
 /**
  * Show a game over message and wait for a key press.
  */
-void end_game() {
+void end_game(int player_num) {
   mvprintw(screen_row(BOARD_HEIGHT / 2) - 1, screen_col(BOARD_WIDTH / 2) - 6, "            ");
   mvprintw(screen_row(BOARD_HEIGHT / 2), screen_col(BOARD_WIDTH / 2) - 6, " Game Over! ");
-  mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 6, "            ");
+
+  if(player_num == 0){
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 3, " Draw! ");
+  } else {
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 8, " Player %d wins! ", player_num);
+  }
+
   mvprintw(screen_row(BOARD_HEIGHT / 2) + 2, screen_col(BOARD_WIDTH / 2) - 11,
            "Press any key to exit.");
   refresh();
   timeout(-1);
-  sleep(2);
+
+  // sleep so we don't accidentally exit right away
+  sleep(1);
+
+  // wait for user input
   int key = getch();
   while(key == ERR){
     ;
@@ -166,11 +184,13 @@ void end_game() {
  * Run in a task to draw the current state of the game board.
  */
 void* draw_board(void* arg) {
-  start_color();
-  init_pair(1, COLOR_WHITE, COLOR_YELLOW);
 
-  init_pair(2, COLOR_BLACK, COLOR_CYAN);
-  init_pair(3, COLOR_BLACK, COLOR_WHITE);
+  // define color pairs for the bikes and trails
+  start_color();
+  init_pair(1, COLOR_WHITE, COLOR_YELLOW); // color pair for player 1 trail
+  init_pair(2, COLOR_BLACK, COLOR_CYAN); // color pair for player 2 trail
+  init_pair(3, COLOR_BLACK, COLOR_WHITE); // color pair for player bikes
+
   while (running) {
     refresh();
     // Loop over cells of the game board
@@ -179,13 +199,11 @@ void* draw_board(void* arg) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
         if (board[r][c] == 0) {  // Draw blank spaces
           mvaddch(screen_row(r), screen_col(c), ' ');
-        } else if (board[r][c] == 1){
+        } else if (board[r][c] == 1 || board[r][c] == 3){ // Draw player bikes
           mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(3));
-        } else if (board[r][c] == 2) {  // Draw player
+        } else if (board[r][c] == 2) {  // Draw player 1 trail
           mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(1));
-        }else if (board[r][c] == 3) {  // Draw player
-          mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(3));
-        }else if (board[r][c] == 4) {  // Draw player
+        }else if (board[r][c] == 4) {  // Draw player 2 trail
           mvaddch(screen_row(r), screen_col(c), ' '| COLOR_PAIR(2));
         }
       }
@@ -210,17 +228,11 @@ void* draw_board(void* arg) {
  * Run in a task to process user input.
  */
 void* read_input(void *arg) {
-  // pthread_mutex_lock(&dirk_lock);
-  // while(created == 0)
-  //   pthread_cond_wait(&cond, &dirk_lock);
-  // pthread_mutex_unlock(&dirk_lock);
+
   int key;
 
   while (running) {
 
-    // Read a character, potentially blocking this task until a key is pressed
-
-    
     // Make sure the input was read correctly
     if ((key = getch()) == ERR) {
       // ungetch(0);
@@ -231,32 +243,27 @@ void* read_input(void *arg) {
       // end_game();
     }
 
-
-    // Make sure the input was read correctly
-    // if (key == ERR) {
-    //   continue;
-    // }
-
     // Handle the key press
     if (key == KEY_UP && player_dir != DIR_SOUTH) {
-      updated_player_dir = DIR_NORTH;
+      updated_player_dir = DIR_NORTH; // move player 1 up
     } else if (key == KEY_RIGHT && player_dir != DIR_WEST) {
-      updated_player_dir = DIR_EAST;
+      updated_player_dir = DIR_EAST; // move player 1 right
     } else if (key == KEY_DOWN && player_dir != DIR_NORTH) {
-      updated_player_dir = DIR_SOUTH;
+      updated_player_dir = DIR_SOUTH; // move player 1 down
     } else if (key == KEY_LEFT && player_dir != DIR_EAST) {
-      updated_player_dir = DIR_WEST;
-    } else if (key == 'q') {
-      running = false;
+      updated_player_dir = DIR_WEST; // move player 1 left
     } else if (key == 'w' && player_dir_2 != DIR_SOUTH) {
-      updated_player_dir_2 = DIR_NORTH;
+      updated_player_dir_2 = DIR_NORTH; // move player 2 up
     } else if (key == 'd' && player_dir_2 != DIR_WEST) {
-      updated_player_dir_2 = DIR_EAST;
+      updated_player_dir_2 = DIR_EAST; // move player 2 right 
     } else if (key == 's' && player_dir_2 != DIR_NORTH) {
-      updated_player_dir_2 = DIR_SOUTH;
+      updated_player_dir_2 = DIR_SOUTH; // move player 2 down 
     } else if (key == 'a' && player_dir_2 != DIR_EAST) {
-      updated_player_dir_2 = DIR_WEST;
-    }
+      updated_player_dir_2 = DIR_WEST; // move player 2 left
+    } //else if (key == 'q') {
+    //   running = false;
+    //   end_game(0); // end the game early
+    // }
   }
   return NULL;
 }
@@ -265,15 +272,13 @@ void* read_input(void *arg) {
  * Run in a task to move the player around on the board
  */
 void* update_player(void* arg) {
-  // pthread_mutex_lock(&dirk_lock);
-  // while(created == 0)
-  //   pthread_cond_wait(&cond, &dirk_lock);
-  // pthread_mutex_unlock(&dirk_lock);
+
   while (running) {
-    // Update the direction of the player
+  
     int player_num = *(int*)arg;
     int current_player_dir;
 
+    // Update the direction of the player
     if(player_num == 1){
       current_player_dir = updated_player_dir;
       player_dir = updated_player_dir;
@@ -296,7 +301,7 @@ void* update_player(void* arg) {
     // "Age" each existing segment of the player
     for (int r = 0; r < BOARD_HEIGHT; r++) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
-        if (board[r][c] == player_num *2 -1) {  // Found the head of the player. Save position
+        if (board[r][c] == player_num *2 -1) {  // Found the bike of the player. Save position
           player_row = r;
           player_col = c;
           board[r][c]++;
@@ -320,20 +325,19 @@ void* update_player(void* arg) {
     pthread_mutex_lock(&board_lock);
     if (player_row < 0 || player_row >= BOARD_HEIGHT || player_col < 0 || player_col >= BOARD_WIDTH) {
       running = false;
-
-      // Add a key to the input buffer so the read_input task can exit
-      // ungetch(0);
-
-    } else if (board[player_row][player_col] != 0) {
-      // Check for player collisions
+      end_game(2 / player_num); // current thread lost, so we pass the other player num
+    // Check for head-to-head collisions
+    } else if (board[player_row][player_col] != 0 && board[player_row][player_col] == 3 / player_num){
       running = false;
-
-      // Add a key to the input buffer so the read_input task can exit
-      // ungetch(0);
+      end_game(0);
+    // Check for player collisions
+    } else if (board[player_row][player_col] != 0) {
+      running = false;
+      end_game(2 / player_num); 
     }
+    // if no collisions, update the new position of the bike
     if (running){
       board[player_row][player_col] = (player_num * 2) - 1;
-      // board[player_row_2][player_col_2] = 1;
     }
     pthread_mutex_unlock(&board_lock);
 
@@ -344,13 +348,13 @@ void* update_player(void* arg) {
       sleep_ms(player_HORIZONTAL_INTERVAL);
     }
 
-
   }
   return NULL;
 }
 
 // Entry point: Set up the game, create jobs, then run the scheduler
 int main(void) {
+
   // Initialize the ncurses window
   WINDOW* mainwin = initscr();
   if (mainwin == NULL) {
@@ -375,42 +379,26 @@ int main(void) {
   board[BOARD_HEIGHT - 2][BOARD_WIDTH / 2] = 1;
   board[2][BOARD_WIDTH / 2] = 3;
 
-  // Task handles for each of the game tasks
-  // task_t update_player_task;
-  // task_t draw_board_task;
-  // task_t read_input_task;
-
   // Threads for each of the game tasks
   pthread_t update_player_thread;
   pthread_t update_player_thread_2;
   pthread_t draw_board_thread;
   pthread_t read_input_thread;
 
-  // Initialize the scheduler library
-  // scheduler_init();
-
-
-  // Create tasks for each task in the game
-  // task_create(&update_player_task, update_player);
-  // task_create(&draw_board_task, draw_board);
-  // task_create(&read_input_task, read_input);
+  // display a starting screen
   start_game();
   wrefresh(mainwin);
 
   int player_number_1 = 1;
   int player_number_2 = 2;
 
+  // create the four game threads
   pthread_create(&update_player_thread, NULL, update_player, (void*) &player_number_1);
   pthread_create(&update_player_thread_2, NULL, update_player, (void*) &player_number_2);
   pthread_create(&draw_board_thread, NULL, draw_board, NULL);
   pthread_create(&read_input_thread, NULL, read_input, NULL);
 
-
-  // // Wait for these tasks to exit
-  // task_wait(update_player_task);
-  // task_wait(draw_board_task);
-  // task_wait(read_input_task);
-  
+  // wait for all threads to finish
   pthread_join(update_player_thread, NULL);
   pthread_join(update_player_thread_2, NULL);
   pthread_join(draw_board_thread, NULL);
@@ -418,8 +406,8 @@ int main(void) {
 
 
 
-  // Display the end of game message and wait for user input
-  end_game();
+  // Display the end of game message and wait for user input **now handled in update_player**
+  // end_game();
 
   // Clean up window
   delwin(mainwin);
