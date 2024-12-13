@@ -186,15 +186,17 @@ void end_game(int player_num) {
 void* draw_board(void* arg) {
 
   // define color pairs for the bikes and trails
+  use_default_colors();
   start_color();
-  init_pair(1, COLOR_WHITE, COLOR_YELLOW); // color pair for player 1 trail
-  init_pair(2, COLOR_BLACK, COLOR_CYAN); // color pair for player 2 trail
-  init_pair(3, COLOR_BLACK, COLOR_WHITE); // color pair for player bikes
+
+  init_pair(1, -1, COLOR_YELLOW); // color pair for player 1 trail
+  init_pair(2, -1, COLOR_CYAN); // color pair for player 2 trail
+  init_pair(3, -1, COLOR_WHITE); // color pair for player bikes
 
   while (running) {
-    refresh();
     // Loop over cells of the game board
     pthread_mutex_lock(&board_lock);
+    refresh();
     for (int r = 0; r < BOARD_HEIGHT; r++) {
       for (int c = 0; c < BOARD_WIDTH; c++) {
         if (board[r][c] == 0) {  // Draw blank spaces
@@ -354,6 +356,7 @@ void* update_player(void* arg) {
 
 // Entry point: Set up the game, create jobs, then run the scheduler
 int main(void) {
+  use_default_colors();
 
   // Initialize the ncurses window
   WINDOW* mainwin = initscr();
@@ -386,7 +389,7 @@ int main(void) {
   pthread_t read_input_thread;
 
   // display a starting screen
-  start_game();
+  // start_game();
   wrefresh(mainwin);
 
   int player_number_1 = 1;
