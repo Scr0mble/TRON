@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <ctype.h>
 #include "scheduler.h"
 #include "util.h"
 
@@ -152,6 +152,60 @@ void start_game() {
   sleep(2);
 }
 
+/** 
+ * Reads a name from the user and increments the score for that name in the file
+ */
+void update_score() {
+  // Try to open the file
+  FILE* scores = fopen("scoresheet.csv", "r+");
+  if (scores == NULL) {
+    perror("Unable to open input file");
+    exit(1);
+  }
+
+  char name[4];
+  name[3] = '\0';
+  for(int i = 0; i < 3; i++) {
+    int name_ch = toupper(getch());
+    name[i] = name_ch;
+    mvaddch(screen_row(BOARD_HEIGHT / 2) + 4, screen_col(BOARD_WIDTH / 2) - 1 + i, name_ch);
+    refresh();
+  }
+
+  char* line = malloc(sizeof(char) * 10);
+  char* score = malloc(sizeof(char) * 5);
+  char* new_score = malloc(sizeof(char) * 5);
+  int updated = 0;
+  while(fgets(line, 10, scores)) {
+    if(strncmp(name, line, 3) == 0) {
+      fseek(scores, -2, SEEK_CUR);
+      strcpy(score, "");
+      int scr = atoi(fgets(score, 5, scores));
+      //printw("%d", scr);
+      scr++;
+      fseek(scores, -2, SEEK_CUR);
+      strcpy(new_score, "");
+      sprintf(new_score, "%d", scr);
+      fputs(new_score, scores);
+      fseek(scores, 1, SEEK_CUR);
+      updated = 1;
+    }
+    // char cur_name[4];
+    // strncopy(cur_name, line, 3);
+    // cur_name[3] = '\0';
+    // if(strcmp(name, cur_name) )
+  }
+  if(updated == 0) {
+    char* new_name = malloc(sizeof(char) * 10);
+    new_name[0] = '\0';
+    strcat(new_name, name);
+    strcat(new_name, ",1\n");
+    fputs(new_name, scores);
+  }
+
+  fclose(scores);
+  return;
+}
 /**
  * Show a game over message and wait for a key press.
  */
@@ -165,19 +219,20 @@ void end_game(int player_num) {
     mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 8, " Player %d wins! ", player_num);
   }
 
-  mvprintw(screen_row(BOARD_HEIGHT / 2) + 2, screen_col(BOARD_WIDTH / 2) - 11,
-           "Press any key to exit.");
+  mvprintw(screen_row(BOARD_HEIGHT / 2) + 2, screen_col(BOARD_WIDTH / 2) - 14,
+           "Player %d, please enter your name.", player_num);
   refresh();
   timeout(-1);
 
   // sleep so we don't accidentally exit right away
-  sleep(1);
+  sleep(2);
 
+  update_score();
   // wait for user input
-  int key = getch();
-  while(key == ERR){
-    ;
-  }
+  // int key = getch();
+  // while(key == ERR){
+  //   ;
+  // }
 }
 
 /**
@@ -389,7 +444,7 @@ int main(void) {
   pthread_t read_input_thread;
 
   // display a starting screen
-  // start_game();
+  start_game();
   wrefresh(mainwin);
 
   int player_number_1 = 1;
