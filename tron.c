@@ -25,12 +25,12 @@
 
 // Game parameters
 #define INIT_player_LENGTH 4
-#define player_HORIZONTAL_INTERVAL 100
-#define player_VERTICAL_INTERVAL 150
+#define player_HORIZONTAL_INTERVAL 100 // 100
+#define player_VERTICAL_INTERVAL 70
 #define DRAW_BOARD_INTERVAL 33
 #define READ_INPUT_INTERVAL 150
 #define BOARD_WIDTH 100
-#define BOARD_HEIGHT 40
+#define BOARD_HEIGHT 31
 
 // Locks for concurrency control
 pthread_mutex_t board_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -54,6 +54,7 @@ int updated_player_dir_2 = DIR_SOUTH;
 
 // Is the game running?
 bool running = true;
+bool play_again = false;
 
 /**
  * Convert a board row number to a screen position
@@ -112,6 +113,25 @@ void init_display()
   refresh();
 }
 
+void game_countdown()
+{
+  int row = (BOARD_HEIGHT / 2);
+  int col = (BOARD_WIDTH / 2);
+  for (int i = 3; i >= 0; i--)
+  {
+    mvprintw(screen_row(row) + 6, screen_col(BOARD_WIDTH / 2) - 12,
+             "     Starting in %d.     ", i);
+    refresh();
+    sleep(1);
+  }
+  mvprintw(screen_row(row) + 6, screen_col(col) - 12, "                        ");
+  mvprintw(screen_row(row) + 6, screen_col(col) - 4,
+           " Begin! ");
+
+  refresh();
+  sleep(2);
+}
+
 /**
  * Show a game startup message and wait for a key press.
  */
@@ -143,24 +163,83 @@ void start_game()
   // ungetch otherwise it breaks
   ungetch(0);
 
-  // countdown timer until game start
-  for (int i = 3; i >= 0; i--)
-  {
-    mvprintw(screen_row(row) + 6, screen_col(BOARD_WIDTH / 2) - 12,
-             "     Starting in %d.     ", i);
-    refresh();
-    sleep(1);
-  }
-  mvprintw(screen_row(row) + 6, screen_col(col) - 12, "                        ");
-  mvprintw(screen_row(row) + 6, screen_col(col) - 4,
-           " Begin! ");
-
-  refresh();
-  sleep(2);
+  game_countdown();
 }
 
-void printscores()
+void displayScores()
 {
+  int row = (BOARD_HEIGHT / 2);
+  int col = (BOARD_WIDTH / 2);
+
+  // Try to open the file
+  FILE *scores = fopen("scoresheet.csv", "r+");
+  if (scores == NULL)
+  {
+    perror("Unable to open score file");
+    exit(1);
+  }
+
+  int rowstart = screen_row(row) - 8;
+  mvprintw(rowstart++, screen_col(col) - 11, "---------------------");
+  mvprintw(rowstart++, screen_col(col) - 11, "|   LEADERBOARD     |");
+  mvprintw(rowstart++, screen_col(col) - 11, "|rank, player, score|");
+  mvprintw(rowstart++, screen_col(col) - 11, "|                   |");
+
+  char *line = malloc(sizeof(char) * 10); // the line to read in from the file
+  char *user = malloc(sizeof(char) * 21); // the line in which to store the printable userline
+  for (int i = 1; i < 11; i++)
+  {
+    strcpy(user, ""); // blank out any existing data stored in user
+    if (i == 1)
+    {
+      sprintf(user, "| %dst  ", i);
+    }
+    else if (i == 2)
+    {
+      sprintf(user, "| %dnd  ", i);
+    }
+    else if (i == 3)
+    {
+      sprintf(user, "| %drd  ", i);
+    }
+    else if (i == 10)
+    {
+      sprintf(user, "| %dth ", i);
+    }
+    else
+    {
+      sprintf(user, "| %dth  ", i);
+    } // format the number depending on rank
+
+    if (fgets(line, 10, scores))
+    {
+      line[strcspn(line, "\n")] = 0; // counts the number of chaarachters till newline and removes it
+      strcat(user, line);
+    }
+    else
+    {
+      strcat(user, "        ");
+    } // add the score if it exists and spaces otherwise
+    strcat(user, "     |");
+    mvprintw(rowstart++, screen_col(col) - 11, "%s", user);
+  } // print the top 10
+  mvprintw(rowstart++, screen_col(col) - 11, "|  p to play again  |");
+  mvprintw(rowstart++, screen_col(col) - 11, "|  dif key to exit  |");
+  mvprintw(rowstart++, screen_col(col) - 11, "---------------------");
+
+  refresh();
+  sleep(1);
+  int key;
+  while ((key = getch()) == ERR)
+  {
+    ;
+  }
+  // ungetch otherwise it breaks
+  ungetch(0);
+  if (key == 'p')
+  {
+    play_again = true;
+  }
 }
 
 /**
@@ -190,32 +269,54 @@ void update_score()
   // char* score = malloc(sizeof(char) * 5);
   char *new_score = malloc(sizeof(char) * 5);
   int updated = 0;
+  bool first = true;
+
+  int scr;
+  int prevScr = 999; //maximum score, to prevent it swapping.
+  char *prevLine = malloc(sizeof(char) * 10);
+  unsigned long prevPos = 0;
+
   while (fgets(line, 10, scores))
   {
+    scr = atoi(line + 5); // the integer value of the currently stored score;
     if (strncmp(name, line, 3) == 0)
     {
       // fseek(scores, -2, SEEK_CUR);
       // strcpy(score, "");
-      int scr = atoi(line + 4);
-      // printw("%d", scr);
       scr++;
-      fseek(scores, -4, SEEK_CUR);
-      strcpy(new_score, "");
-      sprintf(new_score, "%d", scr);
-      fputs(new_score, scores);
-      fseek(scores, 1, SEEK_CUR);
+
+      fseek(scores, -4, SEEK_CUR); //move cursor to current score position
+      strcpy(new_score, ""); //clear the string that holds the new score/
+      sprintf(new_score, "%d", scr);// turn the score integer into a string
+      fputs(new_score, scores); //save it into the file
+      fseek(scores, 1, SEEK_CUR); // reset the cursor.
+
+      if (!(first) && (prevScr < scr))
+      {
+        fseek(scores, prevPos, SEEK_SET);
+        fgets(prevLine, 10, scores);      // save the previous line,
+        fgets(line, 10, scores);      // save the previous line,
+        fseek(scores, prevPos, SEEK_SET); // once again go back to the start of prevline
+        fputs(line, scores);
+        fputs(prevLine, scores);
+
+      } // if we are not the first value, check if the value above is greater than us, if so, swap our locations.
+
       updated = 1;
       // break;
     }
+    first = false;
+    prevScr = scr;               // save the previous scores
+    fflush(scores);              // clear internal buffer
+    prevPos = ftell(scores) - 9; // save previous position (for sorting)
   }
   if (updated == 0)
   {
     char *new_name = malloc(sizeof(char) * 10);
     new_name[0] = '\0';
     strcat(new_name, name);
-    strcat(new_name, ",1  \n");
+    strcat(new_name, "  1  \n");
     fputs(new_name, scores);
-    printf("madeithere");
   }
 
   fclose(scores);
@@ -226,21 +327,27 @@ void update_score()
  */
 void end_game(int player_num)
 {
-  mvprintw(screen_row(BOARD_HEIGHT / 2) - 1, screen_col(BOARD_WIDTH / 2) - 6, "            ");
-  mvprintw(screen_row(BOARD_HEIGHT / 2), screen_col(BOARD_WIDTH / 2) - 6, " Game Over! ");
+  mvprintw(screen_row(BOARD_HEIGHT / 2) - 1, screen_col(BOARD_WIDTH / 2) - 10, "                    ");
+  mvprintw(screen_row(BOARD_HEIGHT / 2), screen_col(BOARD_WIDTH / 2) - 7, "  Game Over!  ");
 
   if (player_num == 0)
   {
-    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 3, " Draw! ");
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 7, "    Draw!    ");
+    mvprintw(screen_row(BOARD_HEIGHT / 2) - 1, screen_col(BOARD_WIDTH / 2) - 5, "          ");
     refresh();
     timeout(-1);
   }
   else
   {
-    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 8, " Player %d wins! ", player_num);
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 1, screen_col(BOARD_WIDTH / 2) - 9, "  Player %d wins!  ", player_num);
 
     mvprintw(screen_row(BOARD_HEIGHT / 2) + 2, screen_col(BOARD_WIDTH / 2) - 14,
              "Player %d, please enter your name.", player_num);
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 3, screen_col(BOARD_WIDTH / 2) - 5, "          ");
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 4, screen_col(BOARD_WIDTH / 2) - 4,
+             "   ---   ");
+    mvprintw(screen_row(BOARD_HEIGHT / 2) + 5, screen_col(BOARD_WIDTH / 2) - 5, "          ");
+
     refresh();
     timeout(-1);
     // sleep so we don't accidentally exit right away
@@ -249,12 +356,7 @@ void end_game(int player_num)
     update_score();
   }
 
-  // wait for user input
-  int key = getch();
-  while (key == ERR)
-  {
-    ;
-  }
+  displayScores();
 }
 
 /**
@@ -271,7 +373,7 @@ void *draw_board(void *arg)
   init_pair(2, -1, COLOR_CYAN);   // color pair for player 2 trail
   init_pair(3, -1, COLOR_WHITE);  // color pair for player bikes
 
-  while (running)
+  do
   {
     // Loop over cells of the game board
     pthread_mutex_lock(&board_lock);
@@ -309,7 +411,7 @@ void *draw_board(void *arg)
 
     // Sleep for a while before drawing the board again
     sleep_ms(DRAW_BOARD_INTERVAL);
-  }
+  } while (running);
   return NULL;
 }
 
@@ -501,11 +603,15 @@ int main(void)
   keypad(mainwin, true);  // Support arrow keys
   nodelay(mainwin, true); // Non-blocking keyboard access
 
+  memset(board, 0, BOARD_WIDTH * BOARD_HEIGHT * sizeof(int));
+
   // Initialize the game display
   init_display();
+  curs_set(0);
+  start_game();
 
+GAMESTART:
   // Zero out the board contents
-  memset(board, 0, BOARD_WIDTH * BOARD_HEIGHT * sizeof(int));
 
   // Put the player at the middle of the board
   board[BOARD_HEIGHT - 2][BOARD_WIDTH / 2] = 1;
@@ -519,9 +625,6 @@ int main(void)
 
   // display a starting screen
 
-
-
-  start_game();
   wrefresh(mainwin);
 
   int player_number_1 = 1;
@@ -543,6 +646,25 @@ int main(void)
   // end_game();
 
   // Clean up window
+  if (play_again)
+  {
+    // player 1 parameters
+    player_dir = DIR_NORTH;
+    updated_player_dir = DIR_NORTH;
+
+    // player 2 parameters
+    player_dir_2 = DIR_SOUTH;
+    updated_player_dir_2 = DIR_SOUTH;
+
+    play_again = false;
+    memset(board, 0, BOARD_WIDTH * BOARD_HEIGHT * sizeof(int));
+    draw_board(NULL);
+
+    // game_countdown();
+    // Is the game running?
+    running = true;
+    goto GAMESTART;
+  }
   delwin(mainwin);
   endwin();
 
