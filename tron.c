@@ -25,8 +25,8 @@
 
 // Game parameters
 #define INIT_player_LENGTH 4
-#define player_HORIZONTAL_INTERVAL 100 // 100
-#define player_VERTICAL_INTERVAL 70
+#define player_HORIZONTAL_INTERVAL 75 // 100
+#define player_VERTICAL_INTERVAL 110
 #define DRAW_BOARD_INTERVAL 33
 #define READ_INPUT_INTERVAL 150
 #define BOARD_WIDTH 100
@@ -272,7 +272,7 @@ void update_score()
   bool first = true;
 
   int scr;
-  int prevScr = 999; //maximum score, to prevent it swapping.
+  int prevScr = 0;
   char *prevLine = malloc(sizeof(char) * 10);
   unsigned long prevPos = 0;
 
@@ -301,14 +301,15 @@ void update_score()
         fputs(prevLine, scores);
 
       } // if we are not the first value, check if the value above is greater than us, if so, swap our locations.
-
       updated = 1;
+      break;
       // break;
     }
     first = false;
-    prevScr = scr;               // save the previous scores
+    prevScr = scr;
     fflush(scores);              // clear internal buffer
-    prevPos = ftell(scores) - 9; // save previous position (for sorting)
+    prevPos = ftell(scores) - 9; // save previous position (for sorting)              // save the previous scores)
+
   }
   if (updated == 0)
   {
@@ -660,7 +661,7 @@ GAMESTART:
     memset(board, 0, BOARD_WIDTH * BOARD_HEIGHT * sizeof(int));
     draw_board(NULL);
 
-    // game_countdown();
+    game_countdown();
     // Is the game running?
     running = true;
     goto GAMESTART;
